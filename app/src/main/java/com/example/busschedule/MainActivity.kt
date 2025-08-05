@@ -18,12 +18,40 @@ package com.example.busschedule
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.example.busschedule.ui.BusScheduleApp
 import com.example.busschedule.ui.theme.BusScheduleTheme
+import com.example.busschedule.data.AppDatabase
+import com.example.busschedule.data.SupabaseSync
+import com.example.busschedule.data.SupabaseManager
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+
+val supabase = createSupabaseClient(
+    supabaseUrl = "https://supabase2.ruggedradiance.store",
+    supabaseKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc0ODM2NTMyMCwiZXhwIjo0OTA0MDM4OTIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.AFC-XC3i517X-Ur0nYikIO6io1y4KSJ48BUkh_HJNs4"
+) {
+    install(Postgrest)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            try {
+                val db = AppDatabase.getDatabase(applicationContext)
+                val dao = db.busScheduleDao()
+                val supabaseSync = SupabaseSync()
+
+                // Sincronizare cu Supabase folosind noul SupabaseManager
+                supabaseSync.syncWithSupabase(dao, SupabaseManager.client)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         setContent {
             BusScheduleTheme {
                 BusScheduleApp()

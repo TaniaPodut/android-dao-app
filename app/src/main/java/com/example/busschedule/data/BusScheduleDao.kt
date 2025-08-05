@@ -61,4 +61,6 @@ interface BusScheduleDao {
     @Delete
     suspend fun delete(busSchedule: BusSchedule)
 
+    @Query("SELECT * FROM schedule ORDER BY arrival_time ASC")
+    suspend fun getAllSchedules(): List<BusSchedule>
 }
