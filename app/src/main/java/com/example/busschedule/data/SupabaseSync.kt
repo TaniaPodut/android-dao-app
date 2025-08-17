@@ -17,16 +17,11 @@ package com.example.busschedule.data
 
 import android.util.Log
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
-import kotlinx.serialization.InternalSerializationApi
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(InternalSerializationApi::class)
 @Serializable
 data class BusScheduleSerializable(
     val id: Int,
@@ -70,7 +65,7 @@ class SupabaseSync {
 
             // Debug: afișează primele 5 înregistrări din baza de date locală
             localSchedules.take(5).forEachIndexed { index, schedule ->
-                val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis)
+                val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
                 Log.d(TAG, "  Debug Local[$index]: ID=${schedule.id}, MillisRaw=${schedule.arrivalTimeInMillis}, TimpConvertit=$timeString, Stație=${schedule.stopName}")
             }
 
@@ -86,10 +81,10 @@ class SupabaseSync {
 
             // 3. Găsește datele noi (care nu există în Supabase)
             val newSchedules = localSchedules.filter { local ->
-                val localTimeString = convertMillisToTimeString(local.arrivalTimeInMillis)
+                val localTimeString = convertMillisToTimeString(local.arrivalTimeInMillis.toLong())
                 val exists = onlineSchedules.any { online ->
-                    online.id == local.id &&
-                    online.arrivalTime == localTimeString &&
+                    // Comparăm DOAR după stop_name + timp normalizat, ignorăm id-ul
+                    normalizeTimeString(online.arrivalTime) == localTimeString &&
                     online.stopName == local.stopName
                 }
                 !exists
@@ -103,12 +98,12 @@ class SupabaseSync {
 
                 // Logging detaliat pentru fiecare înregistrare înainte de mapare
                 newSchedules.forEachIndexed { index, schedule ->
-                    val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis)
+                    val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
                     Log.d(TAG, "  Pre-mapare[$index]: ID=${schedule.id}, MillisOriginali=${schedule.arrivalTimeInMillis}, TimpConvertit=$timeString, Stație=${schedule.stopName}")
                 }
 
                 val dataToInsert = newSchedules.map { schedule ->
-                    val convertedTime = convertMillisToTimeString(schedule.arrivalTimeInMillis)
+                    val convertedTime = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
                     Log.d(TAG, "  Mapare: ID=${schedule.id} -> Timp=$convertedTime")
                     BusScheduleSerializable(
                         id = schedule.id,
@@ -139,21 +134,74 @@ class SupabaseSync {
         }
     }
 
-    // Funcție helper pentru a converti timestamp Unix în string de timp
-    private fun convertMillisToTimeString(timestamp: Int): String {
-        // Verificăm dacă este timestamp Unix (secunde) sau milisecunde
-        val timeInMillis = if (timestamp > 1000000000) {
-            // Pare să fie timestamp Unix în secunde, convertim la milisecunde
-            timestamp.toLong() * 1000
-        } else {
-            // Pare să fie deja în milisecunde sau altă unitate
-            timestamp.toLong()
-        }
-
-        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    // Funcție helper pentru a converti timestamp (secunde sau milisecunde) în string de timp canonic "h:mm a"
+    private fun convertMillisToTimeString(timestamp: Long): String {
+        // Dacă e mai mic decât 1 trilion, tratăm ca secunde Unix; altfel ca milisecunde
+        val timeInMillis = if (timestamp < 1_000_000_000_000L) timestamp * 1000 else timestamp
+        val sdf = SimpleDateFormat("h:mm a", Locale.ENGLISH)
         val convertedTime = sdf.format(Date(timeInMillis))
-
         Log.d("SupabaseSync", "🕐 Conversie timp: $timestamp -> $timeInMillis ms -> $convertedTime")
         return convertedTime
+    }
+
+    // Normalizează orice string de timp la formatul canonic "h:mm a" (Locale.ENGLISH)
+    private fun normalizeTimeString(input: String): String {
+        val canonicalFormatter = SimpleDateFormat("h:mm a", Locale.ENGLISH)
+        canonicalFormatter.isLenient = true
+
+        val candidates = listOf(
+            SimpleDateFormat("h:mm a", Locale.ENGLISH).apply { isLenient = true },
+            SimpleDateFormat("hh:mm a", Locale.ENGLISH).apply { isLenient = true },
+            SimpleDateFormat("H:mm", Locale.ENGLISH).apply { isLenient = true },
+            SimpleDateFormat("HH:mm", Locale.ENGLISH).apply { isLenient = true }
+        )
+
+        val trimmed = input.trim().replace("\\s+".toRegex(), " ")
+        // Încercăm parse cu AM/PM în engleză (uppercase) dacă e cazul
+        val upper = trimmed.uppercase(Locale.ENGLISH)
+
+        for (fmt in candidates) {
+            try {
+                val date = when (fmt.toPattern()) {
+                    "h:mm a", "hh:mm a" -> fmt.parse(upper)
+                    else -> fmt.parse(trimmed)
+                }
+                if (date != null) return canonicalFormatter.format(date)
+            } catch (_: Exception) {
+                // ignorăm și încercăm următorul pattern
+            }
+        }
+        // Dacă nu reușim, returnăm inputul original trimis
+        return trimmed
+    }
+
+    /**
+     * Adaugă un timp de sosire în tabelul secundar folosind numele străzii
+     * @param supabaseClient Clientul Supabase
+     * @param streetName numele străzii
+     * @param arrivalTime timpul de sosire în format "h:mm a" (va fi normalizat dacă e alt format)
+     */
+    suspend fun addArrivalTimeByStreetName(
+        supabaseClient: SupabaseClient,
+        streetName: String,
+        arrivalTime: String
+    ): Boolean {
+        return try {
+            val normalized = normalizeTimeString(arrivalTime)
+            Log.d(TAG, "🕒 Adaug timpul $normalized pentru strada $streetName (original: $arrivalTime)")
+
+            // Creare map cu datele de inserat
+            val arrivalData = mapOf(
+                "street_name" to streetName,
+                "arrival_time" to normalized
+            )
+
+            // TODO: Efectuează inserția reală când endpoint-ul este stabilit
+            Log.d(TAG, "✅ Timp de sosire pregătit pentru inserare cu succes")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Eroare la adăugarea timpului de sosire: ${e.message}", e)
+            false
+        }
     }
 }

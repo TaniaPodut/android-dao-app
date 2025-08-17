@@ -7,6 +7,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import kotlinx.serialization.json.Json
 import android.util.Log
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Singleton pentru gestionarea conexiunii la Supabase
@@ -35,6 +37,14 @@ object SupabaseManager {
         }
     }
 
+    /** Row flexibil pentru tabelul 'notes' (coloana id poate lipsi sau fi numită diferit) */
+    @Serializable
+    private data class NoteRow(
+        val id: Int? = null,
+        @SerialName("arrival_time") val arrivalTime: String? = null,
+        @SerialName("stop_name") val stopName: String? = null
+    )
+
     /**
      * Verifică dacă conexiunea la Supabase funcționează
      */
@@ -48,50 +58,59 @@ object SupabaseManager {
     }
 
     /**
-     * Obține toate înregistrările din tabelul notes
+     * Obține toate înregistrările din tabelul notes; mapează flexibil la structura internă
      */
     suspend fun getAllNotes(): List<BusScheduleSerializable> {
         return try {
-            client.from(TABLE_NAME)
+            val rows = client.from(TABLE_NAME)
                 .select()
-                .decodeList<BusScheduleSerializable>()
+                .decodeList<NoteRow>()
+            rows.filter { it.arrivalTime != null && it.stopName != null }
+                .map {
+                    BusScheduleSerializable(
+                        id = it.id ?: -1,
+                        arrivalTime = it.arrivalTime!!,
+                        stopName = it.stopName!!
+                    )
+                }
         } catch (e: Exception) {
             emptyList()
         }
     }
 
     /**
-     * Inserează mai multe înregistrări într-o singură operație
+     * Inserează mai multe înregistrări într-o singură operație; nu trimite 'id' pentru a lăsa DB să-l autogenereze
      */
     suspend fun insertNotes(dataList: List<BusScheduleSerializable>): Boolean {
         return try {
-            Log.d("SupabaseManager", "🔄 Încerc să fac upsert pentru ${dataList.size} înregistrări...")
-            dataList.forEachIndexed { index, data ->
-                Log.d("SupabaseManager", "  [$index]: ID=${data.id}, Timp=${data.arrivalTime}, Stație=${data.stopName}")
+            Log.d("SupabaseManager", "🔄 Insert pentru ${'$'}{dataList.size} înregistrări (fără id)...")
+            // Trimite doar câmpurile necesare DB-ului
+            val rows = dataList.map {
+                NoteRow(
+                    arrivalTime = it.arrivalTime,
+                    stopName = it.stopName
+                )
             }
-
-            // Folosim upsert în loc de insert pentru a evita erorile de duplicate key
-            client.from(TABLE_NAME).upsert(dataList)
-            Log.d("SupabaseManager", "✅ Upsert reușit pentru ${dataList.size} înregistrări")
+            client.from(TABLE_NAME).insert(rows)
+            Log.d("SupabaseManager", "✅ Insert reușit pentru ${'$'}{rows.size} înregistrări")
             true
         } catch (e: Exception) {
-            Log.e("SupabaseManager", "❌ Eroare la upsert: ${e.message}", e)
-            Log.e("SupabaseManager", "   Tip eroare: ${e.javaClass.simpleName}")
+            Log.e("SupabaseManager", "❌ Eroare la insert: ${'$'}{e.message}", e)
+            false
+        }
+    }
 
-            // Încearcă upsert una câte una pentru debug
-            Log.d("SupabaseManager", "🔄 Încerc upsert una câte una...")
-            var successCount = 0
-            dataList.forEachIndexed { index, data ->
-                try {
-                    client.from(TABLE_NAME).upsert(data)
-                    successCount++
-                    Log.d("SupabaseManager", "  ✅ [$index] Succes upsert: ID=${data.id}")
-                } catch (individualError: Exception) {
-                    Log.e("SupabaseManager", "  ❌ [$index] Eroare upsert: ${individualError.message} pentru ID=${data.id}")
-                }
-            }
-            Log.d("SupabaseManager", "📊 Rezultat individual: $successCount/${dataList.size} reușite")
-            successCount > 0 // Returnează true dacă măcar una a reușit
+    /**
+     * Inserează o singură înregistrare (fără id)
+     */
+    suspend fun insertNote(stopName: String, arrivalTime: String): Boolean {
+        return try {
+            val row = NoteRow(arrivalTime = arrivalTime, stopName = stopName)
+            client.from(TABLE_NAME).insert(row)
+            true
+        } catch (e: Exception) {
+            Log.e("SupabaseManager", "❌ Eroare la insert single: ${'$'}{e.message}", e)
+            false
         }
     }
 }

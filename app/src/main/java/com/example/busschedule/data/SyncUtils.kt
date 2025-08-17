@@ -28,8 +28,10 @@ suspend fun sendMappedDataToSupabase(
     }
 }
 
-// Funcție helper pentru a converti milisecunde în string de timp
-private fun convertMillisToTimeString(millis: Int): String {
-    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return sdf.format(Date(millis.toLong()))
+// Funcție helper pentru a converti milisecunde/secondes în string de timp canonic
+fun convertMillisToTimeString(value: Int): String {
+    val timestamp = value.toLong()
+    val timeInMillis = if (timestamp < 1_000_000_000_000L) timestamp * 1000 else timestamp
+    val sdf = SimpleDateFormat("h:mm a", Locale.ENGLISH)
+    return sdf.format(Date(timeInMillis))
 }
