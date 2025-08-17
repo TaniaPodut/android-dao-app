@@ -32,13 +32,17 @@ I prioritized accessibility features to ensure that the app is usable by a wide 
 
 - **Bigger Text**: Increased the text size in certain areas of the app to benefit users with visual impairments or those who prefer larger text for readability.
 
-## My Database Contributions
+## My Room Database Contributions
 
 In addition to other development tasks, I expanded the functionality of the database layer by implementing new DAO (Data Access Object) methods. These methods provide additional capabilities for interacting with the database and managing data.
 
 I also integrated these new DAO methods into the ViewModel layer, allowing the ViewModel to access and manipulate data from the database more effectively. By doing so, I improved the overall architecture of the application and enabled smoother data flow between different components.
 
 While these enhancements may not yet be fully utilized in the application's user interface or other components, they lay the groundwork for future feature implementations and contribute to the overall robustness and flexibility of the application.
+
+## Supabase Integration and Synchronization with Room
+
+I also implemented Supabase integration to extend database capabilities beyond the local storage. Data is stored locally using Room and synchronized with Supabase whenever an internet connection is available, ensuring consistency between local and remote data sources.
 
 ## My DAO Testing Contributions
 
