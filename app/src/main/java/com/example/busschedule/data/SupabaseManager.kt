@@ -79,38 +79,53 @@ object SupabaseManager {
     }
 
     /**
-     * Inserează mai multe înregistrări într-o singură operație; nu trimite 'id' pentru a lăsa DB să-l autogenereze
+     * Inserează mai multe înregistrări într-o singură operație
      */
     suspend fun insertNotes(dataList: List<BusScheduleSerializable>): Boolean {
         return try {
-            Log.d("SupabaseManager", "🔄 Insert pentru ${'$'}{dataList.size} înregistrări (fără id)...")
-            // Trimite doar câmpurile necesare DB-ului
-            val rows = dataList.map {
-                NoteRow(
-                    arrivalTime = it.arrivalTime,
-                    stopName = it.stopName
-                )
+            Log.d("SupabaseManager", "🔄 Încerc să fac upsert pentru ${dataList.size} înregistrări...")
+            dataList.forEachIndexed { index, data ->
+                Log.d("SupabaseManager", "  [$index]: ID=${data.id}, Timp=${data.arrivalTime}, Stație=${data.stopName}")
             }
-            client.from(TABLE_NAME).insert(rows)
-            Log.d("SupabaseManager", "✅ Insert reușit pentru ${'$'}{rows.size} înregistrări")
-            true
-        } catch (e: Exception) {
-            Log.e("SupabaseManager", "❌ Eroare la insert: ${'$'}{e.message}", e)
-            false
-        }
-    }
 
-    /**
-     * Inserează o singură înregistrare (fără id)
-     */
-    suspend fun insertNote(stopName: String, arrivalTime: String): Boolean {
-        return try {
-            val row = NoteRow(arrivalTime = arrivalTime, stopName = stopName)
-            client.from(TABLE_NAME).insert(row)
+            // Întâi încercăm upsert cu toate câmpurile (inclusiv id)
+            client.from(TABLE_NAME).upsert(dataList)
+            Log.d("SupabaseManager", "✅ Upsert reușit pentru ${dataList.size} înregistrări")
             true
         } catch (e: Exception) {
-            Log.e("SupabaseManager", "❌ Eroare la insert single: ${'$'}{e.message}", e)
-            false
+            Log.e("SupabaseManager", "❌ Eroare la upsert: ${e.message}", e)
+            Log.e("SupabaseManager", "   Tip eroare: ${e.javaClass.simpleName}")
+
+            // Fallback: încearcă inserare fără coloana 'id'
+            return try {
+                val fallback = dataList.map { mapOf(
+                    "stop_name" to it.stopName,
+                    "arrival_time" to it.arrivalTime
+                ) }
+                Log.d("SupabaseManager", "🔁 Fallback insert fără 'id' pentru ${fallback.size} înregistrări...")
+                client.from(TABLE_NAME).insert(fallback)
+                Log.d("SupabaseManager", "✅ Insert fallback reușit")
+                true
+            } catch (fallbackError: Exception) {
+                Log.e("SupabaseManager", "❌ Eroare și la fallback insert: ${fallbackError.message}", fallbackError)
+
+                // Ultima încercare: una câte una fără 'id' pentru diagnostic
+                var successCount = 0
+                dataList.forEachIndexed { index, data ->
+                    try {
+                        val item = mapOf(
+                            "stop_name" to data.stopName,
+                            "arrival_time" to data.arrivalTime
+                        )
+                        client.from(TABLE_NAME).insert(item)
+                        successCount++
+                        Log.d("SupabaseManager", "  ✅ [$index] Succes insert fallback")
+                    } catch (individualError: Exception) {
+                        Log.e("SupabaseManager", "  ❌ [$index] Eroare insert fallback: ${individualError.message}")
+                    }
+                }
+                successCount > 0
+            }
         }
     }
 }

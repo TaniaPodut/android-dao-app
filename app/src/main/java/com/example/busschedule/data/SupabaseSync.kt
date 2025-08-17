@@ -16,23 +16,11 @@
 package com.example.busschedule.data
 
 import android.util.Log
-import io.github.jan.supabase.SupabaseClient
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Serializable
+// DTO simplu folosit în aplicație; nu e nevoie de @Serializable aici
 data class BusScheduleSerializable(
-    val id: Int,
-    @SerialName("arrival_time")
-    val arrivalTime: String,
-    @SerialName("stop_name")
-    val stopName: String
-)
-
-// Data class simplă pentru maparea din response-ul raw
-data class BusScheduleRaw(
     val id: Int,
     val arrivalTime: String,
     val stopName: String
@@ -44,7 +32,7 @@ class SupabaseSync {
         private const val TAG = "SupabaseSync"
     }
 
-    suspend fun syncWithSupabase(dao: BusScheduleDao, supabaseClient: SupabaseClient) {
+    suspend fun syncWithSupabase(dao: BusScheduleDao) {
         Log.d(TAG, "🚀 Începe sincronizarea cu Supabase...")
 
         try {
@@ -61,22 +49,24 @@ class SupabaseSync {
 
             // 1. Obține datele locale
             val localSchedules = dao.getAllSchedules()
-            Log.d(TAG, "📱 Date locale găsite: ${localSchedules.size} intrări")
+            Log.d(TAG, "📱 Date locale găsite: ${'$'}{localSchedules.size} intrări")
 
             // Debug: afișează primele 5 înregistrări din baza de date locală
             localSchedules.take(5).forEachIndexed { index, schedule ->
-                val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
-                Log.d(TAG, "  Debug Local[$index]: ID=${schedule.id}, MillisRaw=${schedule.arrivalTimeInMillis}, TimpConvertit=$timeString, Stație=${schedule.stopName}")
+                Log.d(
+                    TAG,
+                    "  Debug Local[${'$'}index]: ID=${'$'}{schedule.id}, MillisRaw=${'$'}{schedule.arrivalTimeInMillis}, TimpConvertit=${'$'}{convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())}, Stație=${'$'}{schedule.stopName}"
+                )
             }
 
             // 2. Obține datele din Supabase
             Log.d(TAG, "🌐 Obțin datele existente din Supabase...")
             val onlineSchedules = SupabaseManager.getAllNotes()
-            Log.d(TAG, "📡 Date online găsite: ${onlineSchedules.size} intrări")
+            Log.d(TAG, "📡 Date online găsite: ${'$'}{onlineSchedules.size} intrări")
 
             // Debug: afișează primele 5 înregistrări din Supabase
             onlineSchedules.take(5).forEachIndexed { index, schedule ->
-                Log.d(TAG, "  Debug Online[$index]: ID=${schedule.id}, Timp=${schedule.arrivalTime}, Stație=${schedule.stopName}")
+                Log.d(TAG, "  Debug Online[${'$'}index]: ID=${'$'}{schedule.id}, Timp=${'$'}{schedule.arrivalTime}, Stație=${'$'}{schedule.stopName}")
             }
 
             // 3. Găsește datele noi (care nu există în Supabase)
@@ -90,21 +80,23 @@ class SupabaseSync {
                 !exists
             }
 
-            Log.d(TAG, "📊 Date noi de sincronizat: ${newSchedules.size} intrări")
+            Log.d(TAG, "📊 Date noi de sincronizat: ${'$'}{newSchedules.size} intrări")
 
             // 4. Inserează datele noi în Supabase
             if (newSchedules.isNotEmpty()) {
-                Log.d(TAG, "📤 Sincronizez ${newSchedules.size} intrări noi...")
+                Log.d(TAG, "📤 Sincronizez ${'$'}{newSchedules.size} intrări noi...")
 
                 // Logging detaliat pentru fiecare înregistrare înainte de mapare
                 newSchedules.forEachIndexed { index, schedule ->
-                    val timeString = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
-                    Log.d(TAG, "  Pre-mapare[$index]: ID=${schedule.id}, MillisOriginali=${schedule.arrivalTimeInMillis}, TimpConvertit=$timeString, Stație=${schedule.stopName}")
+                    Log.d(
+                        TAG,
+                        "  Pre-mapare[${'$'}index]: ID=${'$'}{schedule.id}, MillisOriginali=${'$'}{schedule.arrivalTimeInMillis}, TimpConvertit=${'$'}{convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())}, Stație=${'$'}{schedule.stopName}"
+                    )
                 }
 
                 val dataToInsert = newSchedules.map { schedule ->
                     val convertedTime = convertMillisToTimeString(schedule.arrivalTimeInMillis.toLong())
-                    Log.d(TAG, "  Mapare: ID=${schedule.id} -> Timp=$convertedTime")
+                    Log.d(TAG, "  Mapare: ID=${'$'}{schedule.id} -> Timp=${'$'}convertedTime")
                     BusScheduleSerializable(
                         id = schedule.id,
                         arrivalTime = convertedTime,
@@ -115,13 +107,13 @@ class SupabaseSync {
                 // Logging pentru datele finale mapate
                 Log.d(TAG, "📋 Date finale pentru Supabase:")
                 dataToInsert.forEachIndexed { index, data ->
-                    Log.d(TAG, "  Final[$index]: ID=${data.id}, Timp=${data.arrivalTime}, Stație=${data.stopName}")
+                    Log.d(TAG, "  Final[${'$'}index]: ID=${'$'}{data.id}, Timp=${'$'}{data.arrivalTime}, Stație=${'$'}{data.stopName}")
                 }
 
                 val success = SupabaseManager.insertNotes(dataToInsert)
 
                 if (success) {
-                    Log.d(TAG, "🎉 Sincronizare completă! Trimise ${newSchedules.size} intrări")
+                    Log.d(TAG, "🎉 Sincronizare completă! Trimise ${'$'}{newSchedules.size} intrări")
                 } else {
                     Log.e(TAG, "❌ Eroare la sincronizare")
                 }
@@ -130,7 +122,7 @@ class SupabaseSync {
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "💥 Eroare generală în sincronizare: ${e.message}", e)
+            Log.e(TAG, "💥 Eroare generală în sincronizare: ${'$'}{e.message}", e)
         }
     }
 
@@ -140,7 +132,7 @@ class SupabaseSync {
         val timeInMillis = if (timestamp < 1_000_000_000_000L) timestamp * 1000 else timestamp
         val sdf = SimpleDateFormat("h:mm a", Locale.ENGLISH)
         val convertedTime = sdf.format(Date(timeInMillis))
-        Log.d("SupabaseSync", "🕐 Conversie timp: $timestamp -> $timeInMillis ms -> $convertedTime")
+        Log.d("SupabaseSync", "🕐 Conversie timp: ${'$'}timestamp -> ${'$'}timeInMillis ms -> ${'$'}convertedTime")
         return convertedTime
     }
 
@@ -177,30 +169,36 @@ class SupabaseSync {
 
     /**
      * Adaugă un timp de sosire în tabelul secundar folosind numele străzii
-     * @param supabaseClient Clientul Supabase
      * @param streetName numele străzii
      * @param arrivalTime timpul de sosire în format "h:mm a" (va fi normalizat dacă e alt format)
      */
     suspend fun addArrivalTimeByStreetName(
-        supabaseClient: SupabaseClient,
         streetName: String,
         arrivalTime: String
     ): Boolean {
         return try {
             val normalized = normalizeTimeString(arrivalTime)
-            Log.d(TAG, "🕒 Adaug timpul $normalized pentru strada $streetName (original: $arrivalTime)")
+            Log.d(TAG, "🕒 Adaug timpul ${'$'}normalized pentru strada ${'$'}streetName (original: ${'$'}arrivalTime)")
 
-            // Creare map cu datele de inserat
-            val arrivalData = mapOf(
-                "street_name" to streetName,
-                "arrival_time" to normalized
-            )
+            // Evită duplicate: verifică în memorie din lista existentă
+            val exists = try {
+                val all = SupabaseManager.getAllNotes()
+                all.any { it.stopName == streetName && normalizeTimeString(it.arrivalTime) == normalized }
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ Nu pot verifica existența, continui cu insert: ${'$'}{e.message}")
+                false
+            }
 
-            // TODO: Efectuează inserția reală când endpoint-ul este stabilit
-            Log.d(TAG, "✅ Timp de sosire pregătit pentru inserare cu succes")
-            true
+            if (exists) {
+                Log.d(TAG, "↩️ Există deja (${ '$'}streetName, ${ '$'}normalized), nu inserez din nou")
+                true
+            } else {
+                val ok = SupabaseManager.insertNote(stopName = streetName, arrivalTime = normalized)
+                if (ok) Log.d(TAG, "✅ Inserat (${ '$'}streetName, ${ '$'}normalized})") else Log.e(TAG, "❌ Insert eșuat")
+                ok
+            }
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Eroare la adăugarea timpului de sosire: ${e.message}", e)
+            Log.e(TAG, "❌ Eroare la adăugarea timpului de sosire: ${'$'}{e.message}", e)
             false
         }
     }
