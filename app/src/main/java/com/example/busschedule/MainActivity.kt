@@ -24,16 +24,6 @@ import com.example.busschedule.ui.BusScheduleApp
 import com.example.busschedule.ui.theme.BusScheduleTheme
 import com.example.busschedule.data.AppDatabase
 import com.example.busschedule.data.SupabaseSync
-import com.example.busschedule.data.SupabaseManager
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
-
-val supabase = createSupabaseClient(
-    supabaseUrl = "https://supabase2.ruggedradiance.store",
-    supabaseKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc0ODM2NTMyMCwiZXhwIjo0OTA0MDM4OTIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.AFC-XC3i517X-Ur0nYikIO6io1y4KSJ48BUkh_HJNs4"
-) {
-    install(Postgrest)
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,8 +35,8 @@ class MainActivity : ComponentActivity() {
                 val dao = db.busScheduleDao()
                 val supabaseSync = SupabaseSync()
 
-                // Sincronizare cu Supabase folosind noul SupabaseManager
-                supabaseSync.syncWithSupabase(dao, SupabaseManager.client)
+                // Sincronizare cu Supabase
+                supabaseSync.syncWithSupabase(dao)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
