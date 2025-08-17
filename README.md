@@ -34,9 +34,9 @@ I prioritized accessibility features to ensure that the app is usable by a wide 
 
 ## My Room Database Contributions
 
--Added new DAO methods for extended data access.
--Integrated DAOs into the ViewModel to improve data flow.
--Enhanced database layer to support future features.
+- Added new DAO methods for extended data access.
+- Integrated DAOs into the ViewModel to improve data flow.
+- Enhanced database layer to support future features.
 
 ## My DAO Testing Contributions
 
