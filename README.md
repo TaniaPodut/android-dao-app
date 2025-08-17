@@ -34,16 +34,18 @@ I prioritized accessibility features to ensure that the app is usable by a wide 
 
 ## My Room Database Contributions
 
-In addition to other development tasks, I expanded the functionality of the database layer by implementing new DAO (Data Access Object) methods. These methods provide additional capabilities for interacting with the database and managing data.
-
-I also integrated these new DAO methods into the ViewModel layer, allowing the ViewModel to access and manipulate data from the database more effectively. By doing so, I improved the overall architecture of the application and enabled smoother data flow between different components.
-
-While these enhancements may not yet be fully utilized in the application's user interface or other components, they lay the groundwork for future feature implementations and contribute to the overall robustness and flexibility of the application.
-
-## Supabase Integration and Synchronization with Room
-
-I also implemented Supabase integration to extend database capabilities beyond the local storage. Data is stored locally using Room and synchronized with Supabase whenever an internet connection is available, ensuring consistency between local and remote data sources.
+-Added new DAO methods for extended data access.
+-Integrated DAOs into the ViewModel to improve data flow.
+-Enhanced database layer to support future features.
 
 ## My DAO Testing Contributions
 
-In addition to implementing new DAO (Data Access Object) methods, I conducted testing to ensure their reliability and correctness. Specifically, I tested the DAO methods to validate their functionality and interactions with the database.
+- Tested new DAO methods for correctness and reliability.
+- Validated insert, delete, and query operations.
+
+## Supabase Integration and Synchronization with Room
+
+- Integrated Supabase for remote data synchronization.
+- Room handles local storage; data is synced with Supabase when online.
+- Ensures consistency between local and remote data sources.
+
