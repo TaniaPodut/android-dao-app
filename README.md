@@ -8,7 +8,7 @@ screen will display a list of all arrival times for that particular stop.
 
 The bus stops are stored in a Room database. Schedule items are represented by the `Schedule` class 
 and queries on the data table are made by the `ScheduleDao` class. The app includes a view model to
-access the `ScheduleDao` and format data to be display in a list.
+access the `ScheduleDao` and format data to be displayed in a list.
 
 # Pre-requisites
 * Experience with Kotlin syntax.
@@ -36,16 +36,12 @@ I prioritized accessibility features to ensure that the app is usable by a wide 
 
 - Added new DAO methods for extended data access.
 - Integrated DAOs into the ViewModel to improve data flow.
-- Enhanced database layer to support future features.
 
 ## My DAO Testing Contributions
 
 - Tested new DAO methods for correctness and reliability.
-- Validated insert, delete, and query operations.
 
 ## Supabase Integration and Synchronization with Room
 
 - Integrated Supabase for remote data synchronization.
-- Room handles local storage; data is synced with Supabase when online.
-- Ensures consistency between local and remote data sources.
 
